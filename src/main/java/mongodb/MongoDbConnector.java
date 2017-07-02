@@ -16,36 +16,40 @@
 
 package mongodb;
 
+import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.MongoClient;
+import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoIterable;
+import com.mongodb.client.model.CreateCollectionOptions;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.ValidationOptions;
+import com.mongodb.util.JSON;
 
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.bson.Document;
+
 public class MongoDbConnector {
 
-	// CHECKSTYLE:ON
-
-	private String host= "localhost";
+	private String host = "localhost";
+	
 	private int port = 27017;
-	private String dbname;
-
-	public MongoClient mongoClient;
+	
+	public MongoClient client;
+	
 	/**
-	 * Constructor
+	 * Constructor provide mongoDb connection and setting some options
 	 */
-	public MongoDbConnector() {}
-
-	public boolean isCollectionExists(DB db, String collectionName) 
-	{
-		DBCollection table = db.getCollection(collectionName);
-		return (table.count()>0)?true:false;
+	public MongoDbConnector() {
+		this.disableLoggingConsole();
+		this.connect();
 	}
-
+	
 	/**
 	 * Disable MongoDb logging into console
 	 */
@@ -54,43 +58,58 @@ public class MongoDbConnector {
 		Logger mongoLogger = Logger.getLogger("org.mongodb.driver");
 		mongoLogger.setLevel(Level.SEVERE);
 	}
-
-	public void connect(){
-		this.mongoClient = new MongoClient(host, port);
-	}
-
-
+	 
 	/**
-	 * print into console the list of avaliable database
+	 * Create connection and MongoDb Client object
 	 */
-	public void print_ListDatabase() {
-		System.out.println("# LIST OF DATABASE");
-		int i=0;
-		//Get list of Database
-		MongoIterable<String> a = mongoClient.listDatabaseNames();
-		for(String s: a){
-			System.out.println(i + ": " + s);
-			i++;
-		}
-		System.out.println("\n");
+	private void connect(){
+		if(this.client==null) {
+			this.client = new MongoClient(host, port);
+			}
 	}
-
-
+	
 	public boolean ifExistDB(String dbName) {	
-		return mongoClient
+		return client
 				.listDatabaseNames()
 				.into(new ArrayList<String>())
 				.contains(dbName);
 	}
 
+	public boolean ifExistDifferentCaseDB(String dbName) {	
+		ArrayList<String> listDb= client
+				.listDatabaseNames()
+				.into(new ArrayList<String>());
+		for(String s: listDb){
+			if(s.toLowerCase().equals(dbName.toLowerCase())) return true;
+		}
+		
+		return false;
+	}
+
+	
 	public void print_ifExistDB(String dbName) {
 		System.out.println("# ifExistDB: "+ dbName + " = " + this.ifExistDB(dbName));
 	}
 
+	/**
+	 * print into console the list of avaliable database
+	 */
+	public void print_listDatabase() {
+		System.out.println("# LIST OF DATABASE");
+		int i=0;
+		//Get list of Database
+		MongoIterable<String> a = client.listDatabaseNames();
+		for(String s: a){
+			System.out.println(i + ": " + s);
+			i++;
+		}
+		
+		System.out.println("\n");
+	}
 
 	public boolean ifExistCollection(String dbName, String collectionName) {
 		if(ifExistDB(dbName)==true) {
-			return mongoClient.getDatabase(dbName)
+			return client.getDatabase(dbName)
 					.listCollectionNames()
 					.into(new ArrayList<String>()).contains(collectionName);
 		}else {
@@ -98,7 +117,7 @@ public class MongoDbConnector {
 			return false;
 		}	
 	}
-
+	
 	public void print_ifExistCollection(String dbName, String collectioName) {
 		System.out.println("# ifExistCollection: "
 				+ dbName 
@@ -107,27 +126,40 @@ public class MongoDbConnector {
 				+ " = " 
 				+ this.ifExistCollection(dbName,collectioName));
 	}
+	
+	public boolean ifDatabaseEmpty(String dbName) {
+		
+		System.out.println(this.client.getDatabase(dbName).listCollectionNames()
+	    .into(new ArrayList<String>()).size());
+		
+		return true;
+	}
 
+	
+	public MongoClient getClient() {
+		return this.client;
+	}
+	
 	// CHECKSTYLE:ON
 	
 	public static void main(final String[] args) throws UnknownHostException {
 
 		MongoDbConnector TestDB = new MongoDbConnector();
 
-		TestDB.disableLoggingConsole();
-		TestDB.connect();
-
-		TestDB.print_ListDatabase();
+		TestDB.print_listDatabase();
 
 		TestDB.print_ifExistDB("TEST");
 		TestDB.print_ifExistDB("ow");
 		TestDB.print_ifExistDB("admin");
+		
+		TestDB.ifDatabaseEmpty("TEST");
+		TestDB.ifDatabaseEmpty("ow");
+		TestDB.ifDatabaseEmpty("admin");
 
 		TestDB.print_ifExistCollection("ow","test");	    	
 		TestDB.print_ifExistCollection("ow","hello");
 
-		TestDB.mongoClient.close();
+		TestDB.client.close();
 	}
+	
 }
-
-
